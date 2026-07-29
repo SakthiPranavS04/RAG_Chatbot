@@ -11,7 +11,7 @@ const SourcePanel = ({ sources }) => {
       ) : (
         sources.map((source, idx) => (
           <div key={idx} className="source-card">
-            <div className="filename">📄 {source.filename}</div>
+            <div className="filename">{source.filename}</div>
             <div className="meta">Page/Row: {source.page}</div>
             <div className="meta">Chunk ID: {source.chunk_id.substring(0, 15)}...</div>
           </div>

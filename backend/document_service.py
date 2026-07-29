@@ -2,8 +2,7 @@ import os
 import io
 import time
 import logging
-import pandas as pd
-import fitz  # PyMuPDF
+from pypdf import PdfReader
 from PIL import Image
 import pytesseract
 from pptx import Presentation
@@ -57,21 +56,27 @@ def extract_text_from_pdf(file_path: str, filename: str) -> list:
     """
     chunks = []
     try:
-        doc = fitz.open(file_path)
+        reader = PdfReader(file_path)
         upload_time = time.time()
         
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-            text = page.get_text()
+        # pypdf currently does not easily expose get_pixmap for Tesseract fallback without pdf2image.
+        # Since pdf2image is in our requirements, let's use it for the fallback OCR.
+        from pdf2image import convert_from_path
+        
+        for page_num in range(len(reader.pages)):
+            page = reader.pages[page_num]
+            text = page.extract_text()
             
             # If no text found, perform OCR on the page
-            if not text.strip():
+            if not text or not text.strip():
                 logger.info(f"No text found on page {page_num + 1}, falling back to OCR...")
-                pix = page.get_pixmap()
-                img = Image.open(io.BytesIO(pix.tobytes()))
-                text = pytesseract.image_to_string(img)
+                # Extract image for this page (1-indexed for pdf2image)
+                images = convert_from_path(file_path, first_page=page_num+1, last_page=page_num+1)
+                if images:
+                    img = images[0]
+                    text = pytesseract.image_to_string(img)
             
-            if text.strip():
+            if text and text.strip():
                 metadata = {
                     "filename": filename,
                     "page": page_num + 1,
@@ -80,11 +85,13 @@ def extract_text_from_pdf(file_path: str, filename: str) -> list:
                 }
                 chunks.extend(chunk_text(text, metadata))
                 
-        doc.close()
     except Exception as e:
         logger.error(f"Failed to process PDF {filename}: {str(e)}")
         raise
     return chunks
+
+import csv
+import openpyxl
 
 def extract_text_from_csv(file_path: str, filename: str) -> list:
     """
@@ -94,18 +101,19 @@ def extract_text_from_csv(file_path: str, filename: str) -> list:
     """
     chunks = []
     try:
-        df = pd.read_csv(file_path)
         upload_time = time.time()
-        
-        for idx, row in df.iterrows():
-            text = " ".join([f"{col}: {val}" for col, val in row.items()])
-            metadata = {
-                "filename": filename,
-                "page": idx + 1, # represent row as page
-                "document_type": "csv",
-                "upload_time": upload_time
-            }
-            chunks.extend(chunk_text(text, metadata))
+        with open(file_path, newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for idx, row in enumerate(reader):
+                text = " ".join([f"{col}: {val}" for col, val in row.items() if val])
+                if text.strip():
+                    metadata = {
+                        "filename": filename,
+                        "page": idx + 1, # represent row as page
+                        "document_type": "csv",
+                        "upload_time": upload_time
+                    }
+                    chunks.extend(chunk_text(text, metadata))
     except Exception as e:
         logger.error(f"Failed to process CSV {filename}: {str(e)}")
         raise
@@ -120,18 +128,27 @@ def extract_text_from_excel(file_path: str, filename: str) -> list:
     chunks = []
     try:
         upload_time = time.time()
-        xl = pd.ExcelFile(file_path)
-        for sheet_name in xl.sheet_names:
-            df = xl.parse(sheet_name)
-            for idx, row in df.iterrows():
-                text = " ".join([f"{col}: {val}" for col, val in row.items()])
-                metadata = {
-                    "filename": filename,
-                    "page": f"{sheet_name}_r{idx + 1}",
-                    "document_type": "excel",
-                    "upload_time": upload_time
-                }
-                chunks.extend(chunk_text(text, metadata))
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        for sheet_name in wb.sheetnames:
+            sheet = wb[sheet_name]
+            # Assuming first row is header
+            headers = [cell.value for cell in sheet[1]]
+            
+            for idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True)):
+                row_parts = []
+                for h, val in zip(headers, row):
+                    if val is not None:
+                        row_parts.append(f"{h}: {val}")
+                
+                text = " ".join(row_parts)
+                if text.strip():
+                    metadata = {
+                        "filename": filename,
+                        "page": f"{sheet_name}_r{idx + 1}",
+                        "document_type": "excel",
+                        "upload_time": upload_time
+                    }
+                    chunks.extend(chunk_text(text, metadata))
     except Exception as e:
         logger.error(f"Failed to process Excel {filename}: {str(e)}")
         raise

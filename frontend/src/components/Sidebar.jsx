@@ -3,20 +3,20 @@ import React from 'react';
 const Sidebar = ({ activeTab, setActiveTab, documents }) => {
   return (
     <aside className="sidebar">
-      <h2>🧠 AI RAG ChatBot</h2>
+      <h2>AI RAG ChatBot</h2>
       
       <div className="nav-buttons">
         <button 
           className={`nav-btn ${activeTab === 'upload' ? 'active' : ''}`}
           onClick={() => setActiveTab('upload')}
         >
-          📤 Upload Document
+          Upload Document
         </button>
         <button 
           className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`}
           onClick={() => setActiveTab('chat')}
         >
-          💬 Chat interface
+          Chat interface
         </button>
       </div>
 
@@ -27,7 +27,7 @@ const Sidebar = ({ activeTab, setActiveTab, documents }) => {
         ) : (
           documents.map((doc, idx) => (
             <div key={idx} className="doc-item">
-              📄 {doc}
+              {doc}
             </div>
           ))
         )}

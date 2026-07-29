@@ -66,7 +66,7 @@ const UploadPage = ({ onUploadSuccess }) => {
         onDrop={handleDrop}
         onClick={() => fileInputRef.current.click()}
       >
-        <div className="upload-icon">📄</div>
+        <div className="upload-icon">Upload</div>
         <div className="upload-text">Drag and drop your file here</div>
         <div className="upload-subtext">or click to browse</div>
         <div className="upload-subtext" style={{ marginTop: '10px' }}>
