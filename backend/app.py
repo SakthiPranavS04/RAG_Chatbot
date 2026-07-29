@@ -1,22 +1,22 @@
-import os
 import logging
-from typing import List
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import ValidationError
 
-from config import config
-from models import ChatRequest, ChatResponse, DeleteRequest, DocumentInfo
-from document_service import document_service
-from chat import chat_service
+from models import ChatRequest, ChatResponse, UploadResponse
+from document_service import process_and_store_document
+from chat import chat_with_documents
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# Setup basic logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="AI-Powered Multi-Document RAG Chatbot API")
+app = FastAPI(
+    title="AI RAG Document Chatbot",
+    description="API for uploading documents and chatting with them using RAG",
+    version="1.0.0"
+)
 
-# Configure CORS for frontend
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,83 +25,60 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
+@app.get("/health")
 def health_check():
+    """
+    Purpose: Health endpoint to verify the API is running.
+    Input: None
+    Output: JSON status
+    """
     return {"status": "healthy"}
 
-@app.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
+@app.post("/upload", response_model=UploadResponse)
+async def upload_file(file: UploadFile = File(...)):
+    """
+    Purpose: Upload a file (PDF, CSV, Excel, PPT), extract text/OCR, chunk, embed, and store in vector DB.
+    Input: UploadFile object
+    Output: UploadResponse with success message and chunk count
+    """
+    logger.info(f"Received file upload request: {file.filename}")
     
+    # Validate extension
+    allowed_extensions = {"pdf", "csv", "xls", "xlsx", "ppt", "pptx"}
     ext = file.filename.split(".")[-1].lower()
-    allowed_exts = ["pdf", "csv", "xlsx", "xls"]
     
-    if ext not in allowed_exts:
-        raise HTTPException(status_code=400, detail=f"Unsupported file format. Allowed: {', '.join(allowed_exts)}")
+    if ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}")
         
-    # Check for duplicates in DB
-    existing_docs = chat_service.get_documents()
-    if any(doc["filename"] == file.filename for doc in existing_docs):
-        raise HTTPException(status_code=400, detail="File already exists. Please delete it first or upload a different file.")
-
-    file_path = os.path.join(config.UPLOAD_FOLDER, file.filename)
-    
     try:
-        # Save file securely
-        with open(file_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
+        content = await file.read()
+        
+        # Limit upload size (e.g., 50MB)
+        if len(content) > 50 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large. Maximum size is 50MB.")
             
-        # Process and extract text
-        chunks = document_service.process_file(file_path, file.filename, ext)
+        chunks_processed = process_and_store_document(content, file.filename)
         
-        # Add to Vector Store
-        chat_service.add_documents(chunks)
-        
-        return {"message": "File uploaded and processed successfully", "filename": file.filename, "chunks": len(chunks)}
-        
+        return UploadResponse(
+            filename=file.filename,
+            message="File processed and stored successfully",
+            chunks_processed=chunks_processed
+        )
     except Exception as e:
-        logger.error(f"Error during upload of {file.filename}: {str(e)}")
-        # Clean up file if failed
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+        logger.error(f"Error processing file upload: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
+def chat(request: ChatRequest):
+    """
+    Purpose: Answer questions based on uploaded documents.
+    Input: ChatRequest containing the user's question
+    Output: ChatResponse containing the answer and source citations
+    """
+    logger.info(f"Received chat request: {request.question}")
     try:
-        result = chat_service.chat(request.message)
-        return ChatResponse(**result)
+        response = chat_with_documents(request.question)
+        return response
     except Exception as e:
-        logger.error(f"Chat error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to generate response")
-
-@app.get("/documents", response_model=List[DocumentInfo])
-def list_documents():
-    try:
-        return chat_service.get_documents()
-    except Exception as e:
-        logger.error(f"Error listing documents: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch documents")
-
-@app.post("/delete")
-def delete_document(request: DeleteRequest):
-    if not request.filename:
-        raise HTTPException(status_code=400, detail="Filename required")
-        
-    try:
-        chat_service.delete_document(request.filename)
-        
-        file_path = os.path.join(config.UPLOAD_FOLDER, request.filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            
-        return {"message": f"{request.filename} deleted successfully"}
-    except Exception as e:
-        logger.error(f"Error deleting {request.filename}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to delete document")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+        logger.error(f"Error processing chat request: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

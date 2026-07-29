@@ -1,143 +1,84 @@
 import logging
-from typing import List
-from langchain_community.embeddings import OllamaEmbeddings
-from langchain_chroma import Chroma
-from langchain_community.llms import Ollama
-from langchain.prompts import PromptTemplate
-from config import config
-from models import SourceCitation
-import chromadb
-from chromadb.config import Settings
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import PromptTemplate
+from config import settings
+from document_service import retrieve_vectors
+from models import ChatResponse, SourceCitation
 
 logger = logging.getLogger(__name__)
 
-class ChatService:
-    def __init__(self):
-        try:
-            self.embeddings = OllamaEmbeddings(
-                model=config.EMBEDDING_MODEL,
-                base_url=config.OLLAMA_BASE_URL
-            )
-            
-            self.llm = Ollama(
-                model=config.OLLAMA_MODEL,
-                base_url=config.OLLAMA_BASE_URL
-            )
-            
-            # Persistent ChromaDB client
-            self.chroma_client = chromadb.PersistentClient(path=config.CHROMA_DB_PATH)
-            
-            self.vector_store = Chroma(
-                client=self.chroma_client,
-                collection_name="documents",
-                embedding_function=self.embeddings,
-                persist_directory=config.CHROMA_DB_PATH
-            )
-            
-            self.prompt_template = PromptTemplate(
-                template="""You are an intelligent document assistant.
+# Initialize LLM
+llm = ChatOllama(
+    model=settings.LLM_MODEL,
+    base_url=settings.OLLAMA_BASE_URL
+)
 
-Answer ONLY from the retrieved context.
-
-Never use outside knowledge.
-
-If the answer cannot be found inside the retrieved context,
-respond exactly:
+PROMPT_TEMPLATE = """You are an AI assistant.
+Answer ONLY using the retrieved documents.
+If the answer is unavailable,
+say
 "I could not find that information in the uploaded documents."
+Never hallucinate.
+Return citations.
 
-Always include source citations.
-
-Context:
+Documents:
 {context}
 
-Question: {question}
-Answer:""",
-                input_variables=["context", "question"]
+Question:
+{question}
+"""
+
+prompt = PromptTemplate(
+    template=PROMPT_TEMPLATE,
+    input_variables=["context", "question"]
+)
+
+def chat_with_documents(question: str) -> ChatResponse:
+    """
+    Purpose: Receive a question, retrieve relevant chunks, generate an answer using the LLM, and format the response.
+    Input: user question string
+    Output: ChatResponse object with answer and sources
+    """
+    try:
+        logger.info(f"Processing chat question: {question}")
+        
+        # 1. Retrieve chunks
+        docs = retrieve_vectors(question, k=5)
+        
+        if not docs:
+            return ChatResponse(
+                answer="I could not find that information in the uploaded documents.",
+                sources=[]
             )
-        except Exception as e:
-            logger.error(f"Failed to initialize ChatService: {str(e)}")
-            raise
-
-    def add_documents(self, documents: List):
-        if not documents:
-            return
-        try:
-            self.vector_store.add_documents(documents)
-            logger.info(f"Added {len(documents)} chunks to vector store.")
-        except Exception as e:
-            logger.error(f"Failed to add documents to vector store: {str(e)}")
-            raise
-
-    def get_documents(self):
-        try:
-            collection = self.chroma_client.get_or_create_collection("documents")
-            results = collection.get(include=['metadatas'])
-            metadatas = results.get("metadatas", [])
             
-            # Deduplicate by filename
-            docs = {}
-            for meta in metadatas:
-                if meta and "filename" in meta:
-                    fname = meta["filename"]
-                    if fname not in docs:
-                        docs[fname] = {
-                            "filename": fname,
-                            "document_type": meta.get("document_type", "Unknown"),
-                            "upload_time": meta.get("upload_time", "0"),
-                            "size": 0 # Size is handled at file level in app.py or we just leave it 0
-                        }
-            return list(docs.values())
-        except Exception as e:
-            logger.error(f"Failed to get documents: {str(e)}")
-            return []
-
-    def delete_document(self, filename: str):
-        try:
-            collection = self.chroma_client.get_or_create_collection("documents")
-            collection.delete(where={"filename": filename})
-            logger.info(f"Deleted {filename} from vector store.")
-        except Exception as e:
-            logger.error(f"Failed to delete document {filename}: {str(e)}")
-            raise
-
-    def chat(self, question: str) -> dict:
-        try:
-            docs = self.vector_store.similarity_search(question, k=config.TOP_K)
-            
-            if not docs:
-                return {
-                    "answer": "I could not find that information in the uploaded documents.",
-                    "sources": []
-                }
+        # 2. Prepare context and sources
+        context = ""
+        sources = []
+        seen_chunks = set()
+        
+        for doc in docs:
+            context += doc.page_content + "\n\n"
+            meta = doc.metadata
+            chunk_id = meta.get("chunk_id", "")
+            if chunk_id not in seen_chunks:
+                seen_chunks.add(chunk_id)
+                sources.append(SourceCitation(
+                    filename=meta.get("filename", "unknown"),
+                    page=int(meta.get("page", 1)) if isinstance(meta.get("page"), (int, str)) and str(meta.get("page")).isdigit() else 1,
+                    chunk_id=chunk_id
+                ))
                 
-            context = "\n\n".join([f"Source: {doc.metadata.get('filename')} (Page {doc.metadata.get('page')})\n{doc.page_content}" for doc in docs])
-            
-            prompt = self.prompt_template.format(context=context, question=question)
-            
-            response = self.llm.invoke(prompt)
-            
-            # If the LLM somehow decides not to use the exact string, enforce it if context was irrelevant (though we rely on prompt for this mostly)
-            # The prompt instructs it to say exactly that string.
-            
-            sources = []
-            seen_chunks = set()
-            for doc in docs:
-                chunk_id = doc.metadata.get("chunk_id", "")
-                if chunk_id not in seen_chunks:
-                    sources.append(SourceCitation(
-                        filename=doc.metadata.get("filename", "Unknown"),
-                        page=doc.metadata.get("page", 0),
-                        chunk_id=chunk_id
-                    ))
-                    seen_chunks.add(chunk_id)
-            
-            return {
-                "answer": response.strip(),
-                "sources": sources
-            }
-            
-        except Exception as e:
-            logger.error(f"Chat generation failed: {str(e)}")
-            raise
-
-chat_service = ChatService()
+        # 3. Create prompt and call LLM
+        formatted_prompt = prompt.format(context=context, question=question)
+        logger.info("Sending prompt to LLM...")
+        
+        response = llm.invoke(formatted_prompt)
+        
+        return ChatResponse(
+            answer=response.content,
+            sources=sources
+        )
+        
+    except Exception as e:
+        logger.error(f"Chat failed: {str(e)}")
+        raise

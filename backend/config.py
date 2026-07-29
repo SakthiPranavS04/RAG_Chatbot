@@ -1,22 +1,19 @@
 import os
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
-load_dotenv()
+class Settings(BaseSettings):
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    LLM_MODEL: str = "gpt-oss:20b-cloud"
+    EMBEDDING_MODEL: str = "mxbai-embed-large"
+    UPLOAD_DIR: str = "uploads"
+    CHROMA_DIR: str = "chroma_db"
+    TESSERACT_PATH: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-class Config:
-    OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
-    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:20b-cloud")
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "mxbai-embed-large")
-    CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "chroma_db")
-    UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
-    TESSERACT_PATH = os.getenv("TESSERACT_PATH", r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+    class Config:
+        env_file = ".env"
 
-    # Text Splitting configs
-    CHUNK_SIZE = 1000
-    CHUNK_OVERLAP = 200
+settings = Settings()
 
-    # Retrieval configs
-    TOP_K = 5
-
-config = Config()
+# Ensure directories exist
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+os.makedirs(settings.CHROMA_DIR, exist_ok=True)

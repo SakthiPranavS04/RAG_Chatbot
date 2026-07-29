@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel
+from typing import List
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1, description="User question")
+    question: str
 
 class SourceCitation(BaseModel):
     filename: str
@@ -13,11 +13,7 @@ class ChatResponse(BaseModel):
     answer: str
     sources: List[SourceCitation]
 
-class DocumentInfo(BaseModel):
+class UploadResponse(BaseModel):
     filename: str
-    document_type: str
-    upload_time: str
-    size: int
-
-class DeleteRequest(BaseModel):
-    filename: str
+    message: str
+    chunks_processed: int
