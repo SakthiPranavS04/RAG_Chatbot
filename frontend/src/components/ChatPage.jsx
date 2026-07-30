@@ -9,7 +9,7 @@ const ChatPage = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [currentSources, setCurrentSources] = useState([]);
+  const [currentSources, setCurrentSources] = useState({ question: null, sources: [] });
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -24,7 +24,7 @@ const ChatPage = () => {
     setMessages([
       { role: 'bot', text: 'Hello! I am ready to answer questions about your uploaded documents.' }
     ]);
-    setCurrentSources([]);
+    setCurrentSources({ question: null, sources: [] });
   };
 
   const handleSend = async () => {
@@ -37,8 +37,8 @@ const ChatPage = () => {
     
     try {
       const response = await chatWithDocuments(userMsg);
-      setMessages(prev => [...prev, { role: 'bot', text: response.answer, sources: response.sources }]);
-      setCurrentSources(response.sources || []);
+      setMessages(prev => [...prev, { role: 'bot', text: response.answer }]);
+      setCurrentSources({ question: userMsg, sources: response.sources || [] });
     } catch (err) {
       setMessages(prev => [...prev, { 
         role: 'bot', 
@@ -70,17 +70,7 @@ const ChatPage = () => {
         </div>
         <div className="messages">
           {messages.map((msg, idx) => (
-            <div 
-              key={idx} 
-              className={`message ${msg.role}`}
-              onClick={() => {
-                if (msg.sources) {
-                  setCurrentSources(msg.sources);
-                }
-              }}
-              style={{ cursor: msg.sources ? 'pointer' : 'default' }}
-              title={msg.sources ? "Click to view sources for this response" : ""}
-            >
+            <div key={idx} className={`message ${msg.role}`}>
               {msg.role === 'bot' ? (
                 <div className="markdown-content">
                   <ReactMarkdown>{msg.text}</ReactMarkdown>
