@@ -2,7 +2,8 @@ import logging
 import os
 from document_service import get_store
 from config import settings
-import requests
+from google import genai
+from google.genai import types
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,6 @@ def chat_with_documents(question: str) -> dict:
                 "chunk_id": f"{filename}_all"
             })
             
-        ollama_url = f"{settings.OLLAMA_BASE_URL}/api/generate"
-        model_name = settings.LLM_MODEL
-        
         prompt = f"""You are an AI assistant.
 Answer ONLY using the provided documents context.
 If the answer is unavailable, say "I could not find that information in the uploaded documents."
@@ -42,27 +40,27 @@ Question:
 {question}
 """
         
-        logger.info(f"Sending prompt to Ollama model {model_name}...")
-        payload = {
-            "model": model_name,
-            "prompt": prompt,
-            "stream": False
-        }
+        logger.info(f"Sending prompt to Gemini cloud model...")
         
-        resp = requests.post(ollama_url, json=payload)
-        resp.raise_for_status()
+        # Initialize Gemini Client
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
         
-        data = resp.json()
-        answer = data.get("response", "")
+        # Call Gemini Model
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.0
+            )
+        )
+        
+        answer = response.text
         
         return {
             "answer": answer,
             "sources": sources
         }
         
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Ollama API connection error: {str(e)}")
-        raise Exception(f"Failed to connect to Ollama. Is it running at {settings.OLLAMA_BASE_URL} with model {settings.LLM_MODEL}?")
     except Exception as e:
         logger.error(f"Chat failed: {str(e)}")
         raise

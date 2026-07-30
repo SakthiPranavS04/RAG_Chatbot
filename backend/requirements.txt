@@ -6,3 +6,5 @@ pytesseract
 pdf2image
 openpyxl
 python-dotenv
+pydantic-settings
+python-pptx
