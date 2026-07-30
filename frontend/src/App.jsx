@@ -50,7 +50,7 @@ function App() {
         toggleTheme={toggleTheme}
       />
       <main className="main-content">
-        <ChatPage />
+        <ChatPage theme={theme} />
       </main>
     </div>
   );
