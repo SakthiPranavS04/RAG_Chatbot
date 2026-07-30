@@ -84,7 +84,7 @@ const Sidebar = ({ documents, onDeleteDocument, onUploadSuccess, theme, toggleTh
           type="file" 
           ref={fileInputRef} 
           onChange={handleFileSelect}
-          accept=".pdf,.csv,.xls,.xlsx,.ppt,.pptx"
+          accept=".pdf,.csv,.xls,.xlsx,.ppt,.pptx,.doc,.docx"
           style={{ display: 'none' }}
         />
       </div>

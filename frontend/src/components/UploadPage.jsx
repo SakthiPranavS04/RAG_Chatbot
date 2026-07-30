@@ -70,14 +70,14 @@ const UploadPage = ({ onUploadSuccess }) => {
         <div className="upload-text">Drag and drop your file here</div>
         <div className="upload-subtext">or click to browse</div>
         <div className="upload-subtext" style={{ marginTop: '10px' }}>
-          Supported: PDF, CSV, Excel, PPT (Max 50MB)
+          Supported: PDF, CSV, Excel, PPT, Word (Max 50MB)
         </div>
         
         <input 
           type="file" 
           ref={fileInputRef} 
           onChange={handleFileSelect}
-          accept=".pdf,.csv,.xls,.xlsx,.ppt,.pptx"
+          accept=".pdf,.csv,.xls,.xlsx,.ppt,.pptx,.doc,.docx"
         />
       </div>
 

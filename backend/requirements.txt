@@ -8,3 +8,4 @@ openpyxl
 python-dotenv
 pydantic-settings
 python-pptx
+python-docx

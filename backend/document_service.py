@@ -9,6 +9,7 @@ from pptx import Presentation
 import json
 import pytesseract
 from pdf2image import convert_from_path
+import docx
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -83,6 +84,16 @@ def extract_text_from_ppt(file_path: str, filename: str) -> str:
                 text += shape.text + "\n"
     return text
 
+def extract_text_from_docx(file_path: str, filename: str) -> str:
+    text = ""
+    try:
+        doc = docx.Document(file_path)
+        for para in doc.paragraphs:
+            text += para.text + "\n"
+    except Exception as e:
+        logger.error(f"Error reading docx {filename}: {str(e)}")
+    return text
+
 def process_and_store_document(file_content: bytes, filename: str) -> int:
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     file_path = os.path.join(settings.UPLOAD_DIR, filename)
@@ -101,6 +112,8 @@ def process_and_store_document(file_content: bytes, filename: str) -> int:
         text = extract_text_from_excel(file_path, filename)
     elif ext in ["ppt", "pptx"]:
         text = extract_text_from_ppt(file_path, filename)
+    elif ext in ["doc", "docx"]:
+        text = extract_text_from_docx(file_path, filename)
     else:
         raise ValueError(f"Unsupported file type: {ext}")
         

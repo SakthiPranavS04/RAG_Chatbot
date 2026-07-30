@@ -24,7 +24,7 @@ def upload_file():
     if file.filename == '':
         return jsonify({"detail": "No selected file"}), 400
         
-    allowed_extensions = {"pdf", "csv", "xls", "xlsx", "ppt", "pptx"}
+    allowed_extensions = {"pdf", "csv", "xls", "xlsx", "ppt", "pptx", "doc", "docx"}
     ext = file.filename.split(".")[-1].lower()
     if ext not in allowed_extensions:
         return jsonify({"detail": f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"}), 400

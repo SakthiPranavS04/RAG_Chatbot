@@ -1,17 +1,26 @@
 import os
 from pydantic_settings import BaseSettings
 
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(_BASE_DIR)
+_ENV_FILES = tuple(
+    path for path in (
+        os.path.join(_PROJECT_ROOT, ".env"),
+        os.path.join(_BASE_DIR, ".env"),
+    )
+    if os.path.exists(path)
+)
+
 class Settings(BaseSettings):
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    LLM_MODEL: str = "gpt-oss:20b-cloud"
-    EMBEDDING_MODEL: str = "mxbai-embed-large"
     UPLOAD_DIR: str = "uploads"
     CHROMA_DIR: str = "chroma_db"
     TESSERACT_PATH: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-flash-latest"
 
     class Config:
-        env_file = ".env"
+        env_file = _ENV_FILES or ".env"
+        extra = "ignore"
 
 settings = Settings()
 
