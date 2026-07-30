@@ -7,6 +7,8 @@ import csv
 import openpyxl
 from pptx import Presentation
 import json
+import pytesseract
+from pdf2image import convert_from_path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,6 +36,20 @@ def extract_text_from_pdf(file_path: str, filename: str) -> str:
         page_text = page.extract_text()
         if page_text:
             text += page_text + "\n"
+            
+    # Fallback to OCR if very little text is extracted (e.g. scanned PDF)
+    if len(text.strip()) < 50:
+        logger.info(f"Using Tesseract OCR as fallback for {filename}...")
+        pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_PATH
+        try:
+            # Note: poppler must be in PATH or installed on the system
+            images = convert_from_path(file_path)
+            text = ""
+            for img in images:
+                text += pytesseract.image_to_string(img) + "\n"
+        except Exception as e:
+            logger.error(f"OCR failed for {filename}: {str(e)}")
+            
     return text
 
 def extract_text_from_csv(file_path: str, filename: str) -> str:

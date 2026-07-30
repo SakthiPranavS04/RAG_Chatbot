@@ -1,8 +1,8 @@
 import logging
 import os
 from document_service import get_store
-from google import genai
 from config import settings
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +27,8 @@ def chat_with_documents(question: str) -> dict:
                 "chunk_id": f"{filename}_all"
             })
             
-        api_key = settings.GEMINI_API_KEY
-        if not api_key:
-            return {
-                "answer": "GEMINI_API_KEY is not set in the environment (.env file). Please set it and restart the server.",
-                "sources": []
-            }
-            
-        client = genai.Client(api_key=api_key)
+        ollama_url = f"{settings.OLLAMA_BASE_URL}/api/generate"
+        model_name = settings.LLM_MODEL
         
         prompt = f"""You are an AI assistant.
 Answer ONLY using the provided documents context.
@@ -48,17 +42,27 @@ Question:
 {question}
 """
         
-        logger.info("Sending prompt to Gemini...")
-        response = client.models.generate_content(
-            model='gemma-4-26b-a4b-it',
-            contents=prompt,
-        )
+        logger.info(f"Sending prompt to Ollama model {model_name}...")
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "stream": False
+        }
+        
+        resp = requests.post(ollama_url, json=payload)
+        resp.raise_for_status()
+        
+        data = resp.json()
+        answer = data.get("response", "")
         
         return {
-            "answer": response.text,
+            "answer": answer,
             "sources": sources
         }
         
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Ollama API connection error: {str(e)}")
+        raise Exception(f"Failed to connect to Ollama. Is it running at {settings.OLLAMA_BASE_URL} with model {settings.LLM_MODEL}?")
     except Exception as e:
         logger.error(f"Chat failed: {str(e)}")
         raise

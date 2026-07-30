@@ -40,9 +40,10 @@ const ChatPage = ({ theme }) => {
       setMessages(prev => [...prev, { role: 'bot', text: response.answer }]);
       setCurrentSources({ question: userMsg, sources: response.sources || [] });
     } catch (err) {
+      const errorMsg = err.response?.data?.detail || 'Sorry, I encountered an error while retrieving the answer.';
       setMessages(prev => [...prev, { 
         role: 'bot', 
-        text: 'Sorry, I encountered an error while retrieving the answer.', 
+        text: errorMsg, 
         error: true 
       }]);
     } finally {
@@ -97,7 +98,7 @@ const ChatPage = ({ theme }) => {
               ) : (
                 <div>{msg.text}</div>
               )}
-              {msg.error && <div className="message-error">Error connecting to server.</div>}
+              {msg.error && <div className="message-error" style={{marginTop: '8px', color: '#ff4d4f'}}>Request Failed</div>}
             </div>
           ))}
           {isTyping && (
