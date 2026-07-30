@@ -1,84 +1,71 @@
 import logging
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+import os
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
-from models import ChatRequest, ChatResponse, UploadResponse
 from document_service import process_and_store_document
 from chat import chat_with_documents
 
-# Setup basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(
-    title="AI RAG Document Chatbot",
-    description="API for uploading documents and chatting with them using RAG",
-    version="1.0.0"
-)
+app = Flask(__name__)
+CORS(app)
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/health")
+@app.route("/health", methods=["GET"])
 def health_check():
-    """
-    Purpose: Health endpoint to verify the API is running.
-    Input: None
-    Output: JSON status
-    """
-    return {"status": "healthy"}
+    return jsonify({"status": "healthy"})
 
-@app.post("/upload", response_model=UploadResponse)
-async def upload_file(file: UploadFile = File(...)):
-    """
-    Purpose: Upload a file (PDF, CSV, Excel, PPT), extract text/OCR, chunk, embed, and store in vector DB.
-    Input: UploadFile object
-    Output: UploadResponse with success message and chunk count
-    """
-    logger.info(f"Received file upload request: {file.filename}")
-    
-    # Validate extension
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"detail": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"detail": "No selected file"}), 400
+        
     allowed_extensions = {"pdf", "csv", "xls", "xlsx", "ppt", "pptx"}
     ext = file.filename.split(".")[-1].lower()
-    
     if ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}")
+        return jsonify({"detail": f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"}), 400
         
     try:
-        content = await file.read()
-        
-        # Limit upload size (e.g., 50MB)
-        if len(content) > 50 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="File too large. Maximum size is 50MB.")
-            
+        content = file.read()
         chunks_processed = process_and_store_document(content, file.filename)
-        
-        return UploadResponse(
-            filename=file.filename,
-            message="File processed and stored successfully",
-            chunks_processed=chunks_processed
-        )
+        return jsonify({
+            "filename": file.filename,
+            "message": "File processed and stored successfully",
+            "chunks_processed": chunks_processed
+        })
     except Exception as e:
-        logger.error(f"Error processing file upload: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error processing file: {str(e)}")
+        return jsonify({"detail": str(e)}), 500
 
-@app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
-    """
-    Purpose: Answer questions based on uploaded documents.
-    Input: ChatRequest containing the user's question
-    Output: ChatResponse containing the answer and source citations
-    """
-    logger.info(f"Received chat request: {request.question}")
+@app.route("/documents", methods=["GET"])
+def get_documents():
+    from document_service import get_all_documents
+    return jsonify(get_all_documents())
+
+@app.route("/documents/<filename>", methods=["DELETE"])
+def remove_document(filename):
+    from document_service import delete_document
+    success = delete_document(filename)
+    if success:
+        return jsonify({"message": f"Document {filename} deleted successfully"})
+    return jsonify({"detail": f"Document {filename} not found"}), 404
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    if not data:
+        return jsonify({"detail": "No JSON payload provided"}), 400
+    question = data.get("question", "")
     try:
-        response = chat_with_documents(request.question)
-        return response
+        response = chat_with_documents(question)
+        return jsonify(response)
     except Exception as e:
-        logger.error(f"Error processing chat request: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error processing chat: {str(e)}")
+        return jsonify({"detail": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8001, debug=True, use_reloader=False)

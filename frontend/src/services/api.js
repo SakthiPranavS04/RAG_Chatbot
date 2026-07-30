@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8001';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -25,5 +25,15 @@ export const chatWithDocuments = async (question) => {
 
 export const checkHealth = async () => {
   const response = await api.get('/health');
+  return response.data;
+};
+
+export const getDocuments = async () => {
+  const response = await api.get('/documents');
+  return response.data;
+};
+
+export const deleteDocument = async (filename) => {
+  const response = await api.delete(`/documents/${filename}`);
   return response.data;
 };

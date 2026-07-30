@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { chatWithDocuments } from '../services/api';
 import SourcePanel from './SourcePanel';
 
@@ -19,6 +20,13 @@ const ChatPage = () => {
     scrollToBottom();
   }, [messages, isTyping]);
 
+  const handleNewChat = () => {
+    setMessages([
+      { role: 'bot', text: 'Hello! I am ready to answer questions about your uploaded documents.' }
+    ]);
+    setCurrentSources([]);
+  };
+
   const handleSend = async () => {
     if (!inputValue.trim()) return;
     
@@ -29,7 +37,7 @@ const ChatPage = () => {
     
     try {
       const response = await chatWithDocuments(userMsg);
-      setMessages(prev => [...prev, { role: 'bot', text: response.answer }]);
+      setMessages(prev => [...prev, { role: 'bot', text: response.answer, sources: response.sources }]);
       setCurrentSources(response.sources || []);
     } catch (err) {
       setMessages(prev => [...prev, { 
@@ -52,10 +60,34 @@ const ChatPage = () => {
   return (
     <div className="chat-page">
       <div className="chat-container">
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+          <button 
+            className="new-chat-btn"
+            onClick={handleNewChat}
+          >
+            + New Chat
+          </button>
+        </div>
         <div className="messages">
           {messages.map((msg, idx) => (
-            <div key={idx} className={`message ${msg.role}`}>
-              <div>{msg.text}</div>
+            <div 
+              key={idx} 
+              className={`message ${msg.role}`}
+              onClick={() => {
+                if (msg.sources) {
+                  setCurrentSources(msg.sources);
+                }
+              }}
+              style={{ cursor: msg.sources ? 'pointer' : 'default' }}
+              title={msg.sources ? "Click to view sources for this response" : ""}
+            >
+              {msg.role === 'bot' ? (
+                <div className="markdown-content">
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
+              ) : (
+                <div>{msg.text}</div>
+              )}
               {msg.error && <div className="message-error">Error connecting to server.</div>}
             </div>
           ))}
@@ -71,6 +103,26 @@ const ChatPage = () => {
           <div ref={messagesEndRef} />
         </div>
         
+        <div className="predefined-questions" style={{ display: 'flex', gap: '10px', padding: '10px 20px', flexWrap: 'wrap', borderTop: '1px solid var(--border-color)' }}>
+          {['What is the main topic of the documents?', 'Can you summarize the key points?', 'What are the conclusions?', 'List all mentioned dates and events.'].map((q, idx) => (
+            <button 
+              key={idx}
+              onClick={() => setInputValue(q)}
+              style={{
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                padding: '6px 12px',
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+        
         <div className="input-area">
           <input 
             type="text" 
@@ -80,8 +132,8 @@ const ChatPage = () => {
             onKeyDown={handleKeyDown}
             disabled={isTyping}
           />
-          <button onClick={handleSend} disabled={isTyping || !inputValue.trim()}>
-            ➤
+          <button onClick={handleSend} disabled={isTyping || !inputValue.trim()} className="send-btn">
+            Send
           </button>
         </div>
       </div>
