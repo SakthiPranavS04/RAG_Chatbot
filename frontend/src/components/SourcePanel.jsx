@@ -8,9 +8,9 @@ const SourcePanel = ({ sources }) => {
     <div className="source-panel">
       <h3>Sources</h3>
       {questionText && (
-        <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', borderLeft: '3px solid var(--primary-color)' }}>
+        <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: 'var(--element-bg)', borderRadius: '6px', borderLeft: '3px solid var(--primary-color)' }}>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>For question:</span>
-          <span style={{ fontSize: '0.9rem', fontStyle: 'italic' }}>"{questionText}"</span>
+          <span style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-main)' }}>"{questionText}"</span>
         </div>
       )}
       {sourcesList.length === 0 ? (
