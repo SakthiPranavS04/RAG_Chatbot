@@ -1,7 +1,7 @@
 import logging
 import re
 from collections import Counter
-import ollama
+import anthropic
 
 from document_service import get_store
 from config import settings
@@ -59,49 +59,54 @@ def chat_with_documents(question: str) -> dict:
         top_chunks = get_top_chunks(question, all_chunks, top_k=5)
         context = "\n".join(top_chunks)
         
-        prompt = f"""You are an AI assistant.
+        system_prompt = """You are an AI assistant.
 Answer ONLY using the provided documents context.
 If the answer is unavailable, say "I could not find that information in the uploaded documents."
-Never hallucinate.
+Never hallucinate."""
 
-Documents Context (Top relevant excerpts):
+        prompt = f"""Documents Context (Top relevant excerpts):
 {context}
 
 Question:
 {question}
 """
         
-        headers = {}
-        if settings.OLLAMA_API_KEY:
-            headers["Authorization"] = f"Bearer {settings.OLLAMA_API_KEY}"
+        if not settings.ANTHROPIC_API_KEY:
+            return {
+                "answer": "Anthropic API Key is missing. Please add it to your .env file.",
+                "sources": sources
+            }
             
-        client = ollama.Client(host=settings.OLLAMA_BASE_URL, headers=headers)
-        logger.info(f"Sending prompt to Ollama model: {settings.OLLAMA_MODEL} at {settings.OLLAMA_BASE_URL}")
+        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        logger.info(f"Sending prompt to Claude model: {settings.CLAUDE_MODEL}")
         
         try:
-            response = client.generate(
-                model=settings.OLLAMA_MODEL,
-                prompt=prompt,
-                options={"num_ctx": 512}
+            response = client.messages.create(
+                model=settings.CLAUDE_MODEL,
+                max_tokens=1024,
+                system=system_prompt,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
             )
-        except ollama.ResponseError as re:
-            logger.error(f"Ollama Cloud API Error: {re.error}")
+        except anthropic.APIError as ae:
+            logger.error(f"Anthropic API Error: {str(ae)}")
             return {
-                "answer": f"Ollama Cloud API Error: {re.error}. Please check your model name and API key.",
+                "answer": f"Claude API Error: {str(ae)}. Please check your API key.",
                 "sources": sources
             }
-        except ollama.RequestError as re:
-            logger.error(f"Ollama Cloud Request Error: {str(re)}")
+        except anthropic.APIConnectionError as ace:
+            logger.error(f"Anthropic Connection Error: {str(ace)}")
             return {
-                "answer": f"Network Error communicating with Ollama Cloud API: {str(re)}",
+                "answer": f"Network Error communicating with Claude API: {str(ace)}",
                 "sources": sources
             }
         
-        answer = response.get('response', '')
+        answer = response.content[0].text if response.content else ''
         if not answer:
             answer = "I could not generate a response from the model. Please try again."
             
-        logger.info(f"Ollama response received from {settings.OLLAMA_MODEL}")
+        logger.info(f"Claude response received from {settings.CLAUDE_MODEL}")
 
         return {
             "answer": answer.strip(),

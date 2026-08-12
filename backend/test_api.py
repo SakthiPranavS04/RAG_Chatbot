@@ -1,25 +1,25 @@
-import os
-import ollama
+import anthropic
 from config import settings
 
 def test_api():
-    print(f"Ollama Base URL: {settings.OLLAMA_BASE_URL}")
-    print(f"Testing model: {settings.OLLAMA_MODEL}")
+    print(f"Testing model: {settings.CLAUDE_MODEL}")
     
-    headers = {}
-    if settings.OLLAMA_API_KEY:
-        headers["Authorization"] = f"Bearer {settings.OLLAMA_API_KEY}"
+    if not settings.ANTHROPIC_API_KEY:
+        print("Test failed. ANTHROPIC_API_KEY is missing.")
+        return
         
-    client = ollama.Client(host=settings.OLLAMA_BASE_URL, headers=headers)
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     
     try:
-        response = client.generate(
-            model=settings.OLLAMA_MODEL, 
-            prompt="Hello",
-            options={"num_ctx": 512}
+        response = client.messages.create(
+            model=settings.CLAUDE_MODEL, 
+            max_tokens=1024,
+            messages=[
+                {"role": "user", "content": "Hello! Reply with 'Test passed' if you can read this."}
+            ]
         )
         print("Test passed! Received response:")
-        print(response.get('response'))
+        print(response.content[0].text if response.content else '')
     except Exception as e:
         print("Test failed. Error:", str(e))
 

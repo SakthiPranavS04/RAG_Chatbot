@@ -1,6 +1,6 @@
 flask
 flask-cors
-ollama
+anthropic
 pypdf
 pytesseract
 pdf2image
