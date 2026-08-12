@@ -1,6 +1,6 @@
 flask
 flask-cors
-google-genai
+ollama
 pypdf
 pytesseract
 pdf2image
@@ -9,3 +9,4 @@ python-dotenv
 pydantic-settings
 python-pptx
 python-docx
+pandas

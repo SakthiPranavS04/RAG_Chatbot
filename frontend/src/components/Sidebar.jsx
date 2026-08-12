@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { uploadFile } from '../services/api';
 
-const Sidebar = ({ documents, onDeleteDocument, onUploadSuccess, theme, toggleTheme }) => {
+const Sidebar = ({ documents, onDeleteDocument, onUploadSuccess, theme, toggleTheme, chats, activeChatId, onSelectChat, onDeleteChat, onNewChat }) => {
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -88,6 +88,8 @@ const Sidebar = ({ documents, onDeleteDocument, onUploadSuccess, theme, toggleTh
           style={{ display: 'none' }}
         />
       </div>
+
+
 
       <div className="doc-list">
         <h3>Uploaded Documents</h3>

@@ -10,7 +10,7 @@ import json
 import pytesseract
 from pdf2image import convert_from_path
 import docx
-
+import pandas as pd
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -54,26 +54,43 @@ def extract_text_from_pdf(file_path: str, filename: str) -> str:
     return text
 
 def extract_text_from_csv(file_path: str, filename: str) -> str:
-    text = ""
-    with open(file_path, newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            text += " ".join([f"{col}: {val}" for col, val in row.items() if val]) + "\n"
-    return text
+    try:
+        df = pd.read_csv(file_path)
+        # Convert to a readable string format
+        return df.to_string(index=False)
+    except Exception as e:
+        logger.error(f"Pandas failed to read CSV {filename}: {str(e)}")
+        # Fallback
+        text = ""
+        with open(file_path, newline='', encoding='utf-8', errors='replace') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                text += " ".join([f"{col}: {val}" for col, val in row.items() if val]) + "\n"
+        return text
 
 def extract_text_from_excel(file_path: str, filename: str) -> str:
-    text = ""
-    wb = openpyxl.load_workbook(file_path, data_only=True)
-    for sheet_name in wb.sheetnames:
-        sheet = wb[sheet_name]
-        headers = [cell.value for cell in sheet[1]]
-        for row in sheet.iter_rows(min_row=2, values_only=True):
-            row_parts = []
-            for h, val in zip(headers, row):
-                if val is not None:
-                    row_parts.append(f"{h}: {val}")
-            text += " ".join(row_parts) + "\n"
-    return text
+    try:
+        df = pd.read_excel(file_path, sheet_name=None)
+        text = ""
+        for sheet_name, sheet_df in df.items():
+            text += f"--- Sheet: {sheet_name} ---\n"
+            text += sheet_df.to_string(index=False) + "\n\n"
+        return text
+    except Exception as e:
+        logger.error(f"Pandas failed to read Excel {filename}: {str(e)}")
+        # Fallback
+        text = ""
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        for sheet_name in wb.sheetnames:
+            sheet = wb[sheet_name]
+            headers = [cell.value for cell in sheet[1]]
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                row_parts = []
+                for h, val in zip(headers, row):
+                    if val is not None:
+                        row_parts.append(f"{h}: {val}")
+                text += " ".join(row_parts) + "\n"
+        return text
 
 def extract_text_from_ppt(file_path: str, filename: str) -> str:
     prs = Presentation(file_path)

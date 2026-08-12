@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "uploads"
     CHROMA_DIR: str = "chroma_db"
     TESSERACT_PATH: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-flash-latest"
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3.2:1b"
 
     class Config:
         env_file = _ENV_FILES or ".env"

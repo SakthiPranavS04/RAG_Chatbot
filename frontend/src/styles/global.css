@@ -7,35 +7,37 @@
 [data-theme='dark'] {
   --primary-color: #3b82f6;
   --primary-hover: #2563eb;
-  --bg-color: #09090b;
-  --panel-bg: #18181b;
-  --panel-border: #27272a;
-  --text-main: #fafafa;
-  --text-muted: #a1a1aa;
-  --border-color: #27272a;
+  --bg-color: #0f1115; /* Richer dark background */
+  --panel-bg: rgba(24, 24, 27, 0.6); /* Transparent for glassmorphism */
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: rgba(255, 255, 255, 0.08);
   --success-color: #10b981;
   --error-color: #ef4444;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --element-bg: #27272a;
-  --element-bg-hover: #3f3f46;
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  --element-bg: rgba(255, 255, 255, 0.05);
+  --element-bg-hover: rgba(255, 255, 255, 0.1);
+  --glass-blur: blur(12px);
 }
 
 [data-theme='light'] {
   --primary-color: #2563eb;
   --primary-hover: #1d4ed8;
-  --bg-color: #f4f4f5;
-  --panel-bg: #ffffff;
-  --panel-border: #e4e4e7;
-  --text-main: #09090b;
-  --text-muted: #71717a;
-  --border-color: #e4e4e7;
+  --bg-color: #f1f5f9;
+  --panel-bg: rgba(255, 255, 255, 0.7); /* Transparent for glassmorphism */
+  --panel-border: rgba(0, 0, 0, 0.06);
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-color: rgba(0, 0, 0, 0.08);
   --success-color: #059669;
   --error-color: #dc2626;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --element-bg: #f4f4f5;
-  --element-bg-hover: #e4e4e7;
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --element-bg: rgba(0, 0, 0, 0.03);
+  --element-bg-hover: rgba(0, 0, 0, 0.06);
+  --glass-blur: blur(12px);
 }
 
 * {
@@ -63,11 +65,14 @@ body {
 .sidebar {
   width: 280px;
   background: var(--panel-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border-right: 1px solid var(--panel-border);
   display: flex;
   flex-direction: column;
   padding: 20px;
   z-index: 10;
+  box-shadow: var(--shadow-md);
 }
 
 .sidebar h2 {
@@ -376,11 +381,14 @@ body {
 .source-panel {
   width: 320px;
   background: var(--panel-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border-left: 1px solid var(--panel-border);
   padding: 24px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  box-shadow: var(--shadow-md);
 }
 
 .source-panel h3 {
