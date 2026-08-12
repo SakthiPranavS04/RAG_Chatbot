@@ -15,8 +15,9 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "uploads"
     CHROMA_DIR: str = "chroma_db"
     TESSERACT_PATH: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "llama3.2:1b"
+    OLLAMA_BASE_URL: str = "https://ollama.com"
+    OLLAMA_MODEL: str = "gpt-oss:120b-cloud"
+    OLLAMA_API_KEY: str = ""
 
     class Config:
         env_file = _ENV_FILES or ".env"

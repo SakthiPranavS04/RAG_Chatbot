@@ -71,14 +71,31 @@ Question:
 {question}
 """
         
-        client = ollama.Client(host=settings.OLLAMA_BASE_URL)
-        logger.info(f"Sending prompt to Ollama model: {settings.OLLAMA_MODEL}")
+        headers = {}
+        if settings.OLLAMA_API_KEY:
+            headers["Authorization"] = f"Bearer {settings.OLLAMA_API_KEY}"
+            
+        client = ollama.Client(host=settings.OLLAMA_BASE_URL, headers=headers)
+        logger.info(f"Sending prompt to Ollama model: {settings.OLLAMA_MODEL} at {settings.OLLAMA_BASE_URL}")
         
-        response = client.generate(
-            model=settings.OLLAMA_MODEL,
-            prompt=prompt,
-            options={"num_ctx": 512}
-        )
+        try:
+            response = client.generate(
+                model=settings.OLLAMA_MODEL,
+                prompt=prompt,
+                options={"num_ctx": 512}
+            )
+        except ollama.ResponseError as re:
+            logger.error(f"Ollama Cloud API Error: {re.error}")
+            return {
+                "answer": f"Ollama Cloud API Error: {re.error}. Please check your model name and API key.",
+                "sources": sources
+            }
+        except ollama.RequestError as re:
+            logger.error(f"Ollama Cloud Request Error: {str(re)}")
+            return {
+                "answer": f"Network Error communicating with Ollama Cloud API: {str(re)}",
+                "sources": sources
+            }
         
         answer = response.get('response', '')
         if not answer:
