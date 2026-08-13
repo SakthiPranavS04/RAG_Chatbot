@@ -14,7 +14,7 @@ import pandas as pd
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-STORE_FILE = os.path.join(settings.UPLOAD_DIR, "document_store.json")
+STORE_FILE = os.path.join(settings.UPLOAD_FOLDER, "document_store.json")
 
 def get_store():
     if os.path.exists(STORE_FILE):
@@ -26,7 +26,7 @@ def get_store():
     return {}
 
 def save_store(store):
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    os.makedirs(settings.UPLOAD_FOLDER, exist_ok=True)
     with open(STORE_FILE, "w", encoding="utf-8") as f:
         json.dump(store, f)
 
@@ -41,7 +41,7 @@ def extract_text_from_pdf(file_path: str, filename: str) -> str:
     # Fallback to OCR if very little text is extracted (e.g. scanned PDF)
     if len(text.strip()) < 50:
         logger.info(f"Using Tesseract OCR as fallback for {filename}...")
-        pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_PATH
+        pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
         try:
             # Note: poppler must be in PATH or installed on the system
             images = convert_from_path(file_path)
@@ -112,8 +112,8 @@ def extract_text_from_docx(file_path: str, filename: str) -> str:
     return text
 
 def process_and_store_document(file_content: bytes, filename: str) -> int:
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    file_path = os.path.join(settings.UPLOAD_DIR, filename)
+    os.makedirs(settings.UPLOAD_FOLDER, exist_ok=True)
+    file_path = os.path.join(settings.UPLOAD_FOLDER, filename)
     with open(file_path, "wb") as f:
         f.write(file_content)
         
@@ -153,7 +153,7 @@ def delete_document(filename: str) -> bool:
         del store[filename]
         save_store(store)
         
-        file_path = os.path.join(settings.UPLOAD_DIR, filename)
+        file_path = os.path.join(settings.UPLOAD_FOLDER, filename)
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)

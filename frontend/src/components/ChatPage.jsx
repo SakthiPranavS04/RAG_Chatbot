@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { chatWithDocuments } from '../services/api';
 import SourcePanel from './SourcePanel';
 
@@ -162,7 +163,7 @@ const ChatPage = ({ theme, activeChat, updateChat, onNewChat, chats, onSelectCha
               </div>
               {msg.role === 'bot' ? (
                 <div className="markdown-content">
-                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
                 </div>
               ) : (
                 <div>{msg.text}</div>

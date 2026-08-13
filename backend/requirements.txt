@@ -1,6 +1,6 @@
 flask
 flask-cors
-ollama
+requests
 pypdf
 pytesseract
 pdf2image

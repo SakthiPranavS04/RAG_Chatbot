@@ -12,12 +12,12 @@ _ENV_FILES = tuple(
 )
 
 class Settings(BaseSettings):
-    UPLOAD_DIR: str = "uploads"
-    CHROMA_DIR: str = "chroma_db"
-    TESSERACT_PATH: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    OLLAMA_BASE_URL: str = "https://ollama.com"
-    OLLAMA_MODEL: str = "gpt-oss:120b-cloud"
-    OLLAMA_API_KEY: str = ""
+    UPLOAD_FOLDER: str = "uploads"
+    CHROMA_PATH: str = "chroma_db"
+    TESSERACT_CMD: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    LLM_MODEL: str = "gpt-oss:20b-cloud"
+    EMBEDDING_MODEL: str = "nomic-embed-text"
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
 
     class Config:
         env_file = _ENV_FILES or ".env"
@@ -26,5 +26,5 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Ensure directories exist
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-os.makedirs(settings.CHROMA_DIR, exist_ok=True)
+os.makedirs(settings.UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(settings.CHROMA_PATH, exist_ok=True)

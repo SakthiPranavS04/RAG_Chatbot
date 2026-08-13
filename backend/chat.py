@@ -1,7 +1,7 @@
 import logging
 import re
 from collections import Counter
-import ollama
+import requests
 
 from document_service import get_store
 from config import settings
@@ -59,49 +59,50 @@ def chat_with_documents(question: str) -> dict:
         top_chunks = get_top_chunks(question, all_chunks, top_k=5)
         context = "\n".join(top_chunks)
         
-        prompt = f"""You are an AI assistant.
+        system_prompt = """You are an AI assistant.
 Answer ONLY using the provided documents context.
 If the answer is unavailable, say "I could not find that information in the uploaded documents."
-Never hallucinate.
+Never hallucinate."""
 
-Documents Context (Top relevant excerpts):
+        prompt = f"""Documents Context (Top relevant excerpts):
 {context}
 
 Question:
 {question}
 """
         
-        headers = {}
-        if settings.OLLAMA_API_KEY:
-            headers["Authorization"] = f"Bearer {settings.OLLAMA_API_KEY}"
+        if not settings.OLLAMA_BASE_URL:
+            return {
+                "answer": "Ollama base URL is missing. Please add it to your .env file.",
+                "sources": sources
+            }
             
-        client = ollama.Client(host=settings.OLLAMA_BASE_URL, headers=headers)
-        logger.info(f"Sending prompt to Ollama model: {settings.OLLAMA_MODEL} at {settings.OLLAMA_BASE_URL}")
+        logger.info(f"Sending prompt to Ollama model: {settings.LLM_MODEL}")
         
         try:
-            response = client.generate(
-                model=settings.OLLAMA_MODEL,
-                prompt=prompt,
-                options={"num_ctx": 512}
-            )
-        except ollama.ResponseError as re:
-            logger.error(f"Ollama Cloud API Error: {re.error}")
-            return {
-                "answer": f"Ollama Cloud API Error: {re.error}. Please check your model name and API key.",
-                "sources": sources
+            payload = {
+                "model": settings.LLM_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                "stream": False
             }
-        except ollama.RequestError as re:
-            logger.error(f"Ollama Cloud Request Error: {str(re)}")
+            response = requests.post(f"{settings.OLLAMA_BASE_URL}/api/chat", json=payload)
+            response.raise_for_status()
+            data = response.json()
+            answer = data.get("message", {}).get("content", "")
+        except requests.RequestException as re:
+            logger.error(f"Ollama API Error: {str(re)}")
             return {
-                "answer": f"Network Error communicating with Ollama Cloud API: {str(re)}",
+                "answer": f"Ollama API Error: {str(re)}. Please check your Ollama server.",
                 "sources": sources
             }
         
-        answer = response.get('response', '')
         if not answer:
             answer = "I could not generate a response from the model. Please try again."
             
-        logger.info(f"Ollama response received from {settings.OLLAMA_MODEL}")
+        logger.info(f"Ollama response received from {settings.LLM_MODEL}")
 
         return {
             "answer": answer.strip(),
